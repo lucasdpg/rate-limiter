@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+  app:
+    build: .
+    command: go run ./cmd/server/main.go
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis:6379
