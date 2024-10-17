@@ -1,15 +1,16 @@
 package store
 
 import (
+	"context"
 	"time"
 )
 
 type RateLimiterStore interface {
-	IncrementRequestCount(key string) (int, error)
+	IncrementRequestCount(ctx context.Context, key string, duration time.Duration) (int, error)
 
-	GetRequestCount(key string) (int, error)
+	GetRequestCount(ctx context.Context, key string) (int, error)
 
-	BlockKey(key string, duration time.Duration) error
+	BlockKey(ctx context.Context, key string, duration time.Duration) error
 
-	IsBlocked(key string) (bool, error)
+	IsBlocked(ctx context.Context, key string) (bool, error)
 }
