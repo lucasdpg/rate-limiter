@@ -50,3 +50,18 @@ func (r *RedisStore) IsBlocked(ctx context.Context, key string) (bool, error) {
 	}
 	return blocked, nil
 }
+
+func (r *RedisStore) SetRequestTimestamp(ctx context.Context, key string) error {
+	timestamp := time.Now().UnixNano()
+	return r.client.Set(ctx, key+":timestamp", timestamp, 0).Err()
+}
+
+func (r *RedisStore) GetRequestTimestamp(ctx context.Context, key string) (int64, error) {
+	timestamp, err := r.client.Get(ctx, key+":timestamp").Int64()
+	if err == redis.Nil {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return timestamp, nil
+}

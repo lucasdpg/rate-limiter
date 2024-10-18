@@ -25,16 +25,37 @@ func NewRateLimiter(s store.RateLimiterStore, maxReqIP, maxReqToken int, blockDu
 }
 
 func (rl *RateLimiter) CheckRateLimitIP(ip string) (bool, error) {
-	count, err := rl.store.GetRequestCount(context.Background(), ip)
+	// Verifica se está bloqueado
+	isBlocked, err := rl.store.IsBlocked(context.Background(), ip)
+	if err != nil {
+		return false, err
+	}
+	if isBlocked {
+		return true, nil
+	}
+
+	// Recupera o timestamp da última requisição
+	lastTimestamp, err := rl.store.GetRequestTimestamp(context.Background(), ip)
 	if err != nil {
 		return false, err
 	}
 
-	if count >= rl.maxRequestsIP {
+	// Calcula a diferença de tempo entre a última requisição e a requisição atual
+	currentTimestamp := time.Now().UnixNano()
+	timeDiff := currentTimestamp - lastTimestamp // Diferença em nanossegundos
+
+	// Converte para segundos e compara com o limite
+	if timeDiff < int64(time.Second) {
+		// Se o tempo entre as requisições for menor que 1 segundo, bloqueia
+		err := rl.store.BlockKey(context.Background(), ip, rl.blockDuration)
+		if err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
-	_, err = rl.store.IncrementRequestCount(context.Background(), ip, rl.blockDuration)
+	// Se não atingiu o limite, atualiza o timestamp da requisição
+	err = rl.store.SetRequestTimestamp(context.Background(), ip)
 	if err != nil {
 		return false, err
 	}
@@ -43,22 +64,79 @@ func (rl *RateLimiter) CheckRateLimitIP(ip string) (bool, error) {
 }
 
 func (rl *RateLimiter) CheckRateLimitToken(token string) (bool, error) {
-	count, err := rl.store.GetRequestCount(context.Background(), token)
+	// Verifica se está bloqueado
+	isBlocked, err := rl.store.IsBlocked(context.Background(), token)
+	if err != nil {
+		return false, err
+	}
+	if isBlocked {
+		return true, nil
+	}
+
+	// Recupera o timestamp da última requisição
+	lastTimestamp, err := rl.store.GetRequestTimestamp(context.Background(), token)
 	if err != nil {
 		return false, err
 	}
 
-	if count >= rl.maxRequestsToken {
+	// Calcula a diferença de tempo entre a última requisição e a requisição atual
+	currentTimestamp := time.Now().UnixNano()
+	timeDiff := currentTimestamp - lastTimestamp // Diferença em nanossegundos
+
+	// Converte para segundos e compara com o limite
+	if timeDiff < int64(time.Second) {
+		// Se o tempo entre as requisições for menor que 1 segundo, bloqueia
+		err := rl.store.BlockKey(context.Background(), token, rl.blockDuration)
+		if err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
-	_, err = rl.store.IncrementRequestCount(context.Background(), token, rl.blockDuration)
+	// Se não atingiu o limite, atualiza o timestamp da requisição
+	err = rl.store.SetRequestTimestamp(context.Background(), token)
 	if err != nil {
 		return false, err
 	}
 
 	return false, nil
 }
+
+//func (rl *RateLimiter) CheckRateLimitIP(ip string) (bool, error) {
+//	count, err := rl.store.GetRequestCount(context.Background(), ip)
+//	if err != nil {
+//		return false, err
+//	}
+//
+//	if count >= rl.maxRequestsIP {
+//		return true, nil
+//	}
+//
+//	_, err = rl.store.IncrementRequestCount(context.Background(), ip, rl.blockDuration)
+//	if err != nil {
+//		return false, err
+//	}
+//
+//	return false, nil
+//}
+//
+//func (rl *RateLimiter) CheckRateLimitToken(token string) (bool, error) {
+//	count, err := rl.store.GetRequestCount(context.Background(), token)
+//	if err != nil {
+//		return false, err
+//	}
+//
+//	if count >= rl.maxRequestsToken {
+//		return true, nil
+//	}
+//
+//	_, err = rl.store.IncrementRequestCount(context.Background(), token, rl.blockDuration)
+//	if err != nil {
+//		return false, err
+//	}
+//
+//	return false, nil
+//}
 
 func (rl *RateLimiter) MiddlewareRateLimiter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
