@@ -13,12 +13,12 @@ import (
 
 func main() {
 	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: "localhost:6379", //passar para ler de env?.
 	})
 
 	redisStore := store.NewRedisStore(rdb)
 
-	rl := limiter.NewRateLimiter(redisStore, 2, 4, time.Minute*1)
+	rl := limiter.NewRateLimiter(redisStore, 2, 4, time.Minute*1) //passar parametro para var
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

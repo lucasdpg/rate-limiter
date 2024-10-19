@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -64,4 +65,28 @@ func (r *RedisStore) GetRequestTimestamp(ctx context.Context, key string) (int64
 		return 0, err
 	}
 	return timestamp, nil
+}
+
+func (r *RedisStore) AddRequestTimestamp(ctx context.Context, key string, timestamp int64) error {
+	return r.client.ZAdd(ctx, key+":timestamps", &redis.Z{
+		Score:  float64(timestamp),
+		Member: timestamp,
+	}).Err()
+}
+
+func (r *RedisStore) GetRequestTimestamps(ctx context.Context, key string) ([]int64, error) {
+	timestamps, err := r.client.ZRangeWithScores(ctx, key+":timestamps", 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []int64
+	for _, ts := range timestamps {
+		result = append(result, int64(ts.Score))
+	}
+	return result, nil
+}
+
+func (r *RedisStore) CleanupOldTimestamps(ctx context.Context, key string, threshold int64) error {
+	return r.client.ZRemRangeByScore(ctx, key+":timestamps", "0", fmt.Sprintf("%d", threshold)).Err()
 }
