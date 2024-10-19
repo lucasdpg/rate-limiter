@@ -22,7 +22,7 @@ func RateLimitMiddleware(rl *RateLimiter) func(http.Handler) http.Handler {
 					return
 				}
 				if exceeded {
-					http.Error(w, "Too many requests per second", http.StatusTooManyRequests)
+					http.Error(w, "You have reached the maximum number of requests or actions allowed within a certain time frame", http.StatusTooManyRequests)
 					return
 				}
 			} else {
@@ -32,7 +32,7 @@ func RateLimitMiddleware(rl *RateLimiter) func(http.Handler) http.Handler {
 					return
 				}
 				if exceeded {
-					http.Error(w, "Too many requests per second", http.StatusTooManyRequests)
+					http.Error(w, "You have reached the maximum number of requests or actions allowed within a certain time frame", http.StatusTooManyRequests)
 					return
 				}
 			}

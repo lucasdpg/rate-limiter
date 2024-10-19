@@ -15,7 +15,6 @@ type Config struct {
 	BlockDuration       time.Duration
 	RedisURL            string
 	RedisTTL            time.Duration
-	ServerPort          string
 }
 
 func LoadConfig() (*Config, error) {
@@ -49,7 +48,6 @@ func LoadConfig() (*Config, error) {
 		BlockDuration:       blockDuration,
 		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
 		RedisTTL:            redisTTL,
-		ServerPort:          getEnv("SERVER_PORT", "8080"),
 	}
 
 	return config, nil
