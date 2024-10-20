@@ -16,7 +16,7 @@ func main() {
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Printf("Failed to load config %s", err)
+		fmt.Printf("failed to load config %s", err)
 	}
 
 	rdb := redis.NewClient(&redis.Options{

@@ -46,7 +46,7 @@ func LoadConfig() (*Config, error) {
 		MaxRequestsPerIP:    maxRequestsPerIP,
 		MaxRequestsPerToken: maxRequestsPerToken,
 		BlockDuration:       blockDuration,
-		RedisURL:            getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisURL:            getEnv("REDIS_URL", "localhost:6379"),
 		RedisTTL:            redisTTL,
 	}
 
