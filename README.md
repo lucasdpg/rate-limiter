@@ -1,4 +1,4 @@
-# Rate Limiter
+# Rate Limiter - Instructions
 
 ### Objetivo
 
@@ -43,3 +43,56 @@ Mensagem: you have reached the maximum number of requests or actions allowed wit
 - Crie uma “strategy” que permita trocar facilmente o Redis por outro mecanismo de persistência.
 
 - A lógica do limiter deve estar separada do middleware.
+
+### Entrega
+
+- O código-fonte completo da implementação.
+
+- Documentação explicando como o rate limiter funciona e como ele pode ser configurado.
+
+- Testes automatizados demonstrando a eficácia e a robustez do rate limiter.
+
+- Utilize docker/docker-compose para que possamos realizar os testes de sua aplicação.
+
+- O servidor web deve responder na porta 8080.
+
+
+# Rate Limiter - Documentação
+
+### Como o rate limiter funciona?
+
+Este middleware é executado antes de cada chamada ao servidor web, verificando as informações armazenadas no sistema de armazenamento. Com base na configuração estabelecida, ele decide se deve bloquear ou permitir as requisições.
+
+Em mais detalhes, a cada solicitação ao servidor, o middleware analisa se o número máximo de requisições por segundo para um determinado token ou IP, recuperados da requisição, foi excedido. Para isso, são registradas informações no Redis a cada requisição, possibilitando o monitoramento desse limite. Caso o número máximo de chamadas seja ultrapassado, um bloqueio temporário é imposto de acordo com a configuração especificada. Novas chamadas serão aceitas somente após o término do período de bloqueio da chave.
+
+### Como ele pode ser configurado?
+
+As configurações são baseadas em variáveis de ambiente definidas no arquivo .env, conforme descrito abaixo:
+
+- MAX_REQUESTS_PER_IP → Número máximo de requisições permitidas por IP.
+- MAX_REQUESTS_PER_TOKEN → Número máximo de requisições permitidas por token.
+- BLOCK_DURATION → Duração do bloqueio quando o número máximo de requisições for excedido.
+- REDIS_URL → URL de conexão com o Redis.
+- REDIS_TTL → Tempo de expiração das chaves no Redis.
+
+Exemplo de uso:
+
+```
+MAX_REQUESTS_PER_IP=2
+#Limita a duas requisições por segundo para cada IP.
+
+MAX_REQUESTS_PER_TOKEN=4
+#Limita a quatro requisições por segundo para cada token.
+
+BLOCK_DURATION=2m
+#Bloqueia novas requisições por 2 minutos para qualquer chave que exceda o limite de requisições.
+
+REDIS_URL=localhost:6379
+#URL do Redis, apontando para o servidor local (localhost) na porta padrão 6379.
+
+REDIS_TTL=1h
+#Define o tempo de expiração das chaves no Redis como 1 hora.
+```
+
+### Como Rodar e testar o projeto?
+
