@@ -2,88 +2,91 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 )
 
-// RedisStore implementa a interface RateLimiterStore usando o Redis como backend
 type RedisStore struct {
 	client *redis.Client
-	ctx    context.Context
-	ttl    time.Duration // Tempo de vida (TTL) para as contagens de requisições
 }
 
-// NewRedisStore cria uma nova instância de RedisStore
-func NewRedisStore(redisURL string, ttl time.Duration) (*RedisStore, error) {
-	options, err := redis.ParseURL(redisURL)
-	if err != nil {
-		return nil, err
-	}
-
-	client := redis.NewClient(options)
-	ctx := context.Background()
-
-	// Verifica a conexão com o Redis
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, err
-	}
-
-	return &RedisStore{
-		client: client,
-		ctx:    ctx,
-		ttl:    ttl,
-	}, nil
+func NewRedisStore(client *redis.Client) *RedisStore {
+	return &RedisStore{client: client}
 }
 
-// IncrementRequestCount incrementa o contador de requisições para a chave (IP ou Token) no Redis
-func (r *RedisStore) IncrementRequestCount(key string) (int, error) {
-	count, err := r.client.Incr(r.ctx, key).Result()
+func (r *RedisStore) IncrementRequestCount(ctx context.Context, key string, duration time.Duration) (int, error) {
+	count, err := r.client.Incr(ctx, key).Result()
 	if err != nil {
 		return 0, err
 	}
-
-	// Define o TTL na primeira requisição
-	if count == 1 {
-		err = r.client.Expire(r.ctx, key, r.ttl).Err()
-		if err != nil {
-			return 0, err
-		}
+	_, err = r.client.Expire(ctx, key, duration).Result()
+	if err != nil {
+		return 0, err
 	}
-
 	return int(count), nil
 }
 
-// GetRequestCount retorna o número de requisições associadas a uma chave (IP ou Token)
-func (r *RedisStore) GetRequestCount(key string) (int, error) {
-	count, err := r.client.Get(r.ctx, key).Int()
-	if err != nil {
-		// Se a chave não existir, retorna 0
-		if err == redis.Nil {
-			return 0, nil
-		}
+func (r *RedisStore) GetRequestCount(ctx context.Context, key string) (int, error) {
+	count, err := r.client.Get(ctx, key).Int()
+	if err == redis.Nil {
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
-
 	return count, nil
 }
 
-// BlockKey bloqueia uma chave (IP ou Token) por um tempo definido
-func (r *RedisStore) BlockKey(key string, duration time.Duration) error {
-	return r.client.Set(r.ctx, key, -1, duration).Err()
+func (r *RedisStore) BlockKey(ctx context.Context, key string, duration time.Duration) error {
+	return r.client.Set(ctx, key+":blocked", true, duration).Err()
 }
 
-// IsBlocked verifica se uma chave (IP ou Token) está bloqueada
-func (r *RedisStore) IsBlocked(key string) (bool, error) {
-	count, err := r.client.Get(r.ctx, key).Int()
-	if err != nil && err != redis.Nil {
+func (r *RedisStore) IsBlocked(ctx context.Context, key string) (bool, error) {
+	blocked, err := r.client.Get(ctx, key+":blocked").Bool()
+	if err == redis.Nil {
+		return false, nil
+	} else if err != nil {
 		return false, err
 	}
+	return blocked, nil
+}
 
-	// Se o valor for -1, a chave está bloqueada
-	if count == -1 {
-		return true, nil
+func (r *RedisStore) SetRequestTimestamp(ctx context.Context, key string) error {
+	timestamp := time.Now().UnixNano()
+	return r.client.Set(ctx, key+":timestamp", timestamp, 0).Err()
+}
+
+func (r *RedisStore) GetRequestTimestamp(ctx context.Context, key string) (int64, error) {
+	timestamp, err := r.client.Get(ctx, key+":timestamp").Int64()
+	if err == redis.Nil {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return timestamp, nil
+}
+
+func (r *RedisStore) AddRequestTimestamp(ctx context.Context, key string, timestamp int64) error {
+	return r.client.ZAdd(ctx, key+":timestamps", &redis.Z{
+		Score:  float64(timestamp),
+		Member: timestamp,
+	}).Err()
+}
+
+func (r *RedisStore) GetRequestTimestamps(ctx context.Context, key string) ([]int64, error) {
+	timestamps, err := r.client.ZRangeWithScores(ctx, key+":timestamps", 0, -1).Result()
+	if err != nil {
+		return nil, err
 	}
 
-	return false, nil
+	var result []int64
+	for _, ts := range timestamps {
+		result = append(result, int64(ts.Score))
+	}
+	return result, nil
+}
+
+func (r *RedisStore) CleanupOldTimestamps(ctx context.Context, key string, threshold int64) error {
+	return r.client.ZRemRangeByScore(ctx, key+":timestamps", "0", fmt.Sprintf("%d", threshold)).Err()
 }
