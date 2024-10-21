@@ -94,5 +94,26 @@ REDIS_TTL=1h
 #Define o tempo de expiração das chaves no Redis como 1 hora.
 ```
 
-### Como Rodar e testar o projeto?
+### Como Rodar projeto?
 
+Para rodar o projeto.
+
+- Clone do projeto:
+```
+git clone git@github.com:lucasdpg/rate-limiter.git
+```
+
+- Acessar o diretório do projeto
+```
+cd rate-limiter
+```
+
+- Build e deploy local do projeto
+```
+docker compose up -d
+```
+
+#### Obs:
+
+1. O app respode na porta 8080
+2. Para testar o projeto pode se usar o token nas requets e validar o limiter por token, para validar os limites por IP faça as requets sem o token. 
